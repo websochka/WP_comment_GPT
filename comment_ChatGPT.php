@@ -3,7 +3,7 @@
 Plugin Name: WP Комментатор ChatGPT
 Plugin URI: https://sochka.com
 Description: Искусственный интеллект (ChatGPT) оставляет осмысленный комментарий к вашей записи (каждый раз: при создания новой, при редактировании старой). Дополняет новость уникальным контентом! Стимулирует дальнейшую дискуссию читателями! Настройте: НАСТРОЙКИ - ОБСУЖДЕНИЯ...
-Version: 0.1
+Version: 0.2
 Author: Yaroslav Sochka
 Author URI: https://sochka.com
 License: GPLv2 or later
@@ -84,15 +84,12 @@ function gpt_setting_callback_function2() {
 
 function gpt_setting_callback_function3() {
 	?>
-	<input
-		name="gpt_setting_name3"
-		type="text"
-		value="<?= esc_attr( get_option( 'gpt_setting_name3' ) ) ?>"
-		class="code3"
-	 /> Например: newsBOT
+	<textarea rows="10" cols="45" class="code3" style="height: 50px;"
+		name="gpt_setting_name3">
+<?= esc_attr( get_option( 'gpt_setting_name3' ) ) ?></textarea>
+ Например: newsBOT (если написать список имен, разделенных запятыми, то будет использовано случайное имя из списка)
 	<?php
 }
-
 
 //обращаемся к ИИ за комментарием
 function add_comment_on_post_update( $post_id, $post_after, $post_before ) {
@@ -108,41 +105,53 @@ function add_comment_on_post_update( $post_id, $post_after, $post_before ) {
 
     if ('post' == $_POST['post_type']) {
 
-$inputr = array("Прокомментируй новость: ", "Что ты думаешь по этому поводу: ", "Как ты к этому относишься: ", "Хорошо это или плохо: ", "Есть ли в этом смысл: ");
+$inputr = array("Отвечай от имени человека. Прокомментируй новость: ", "Отвечай от имени человека. Что ты думаешь по этому поводу: ", "Отвечай от имени человека. Как ты к этому относишься: ", "Отвечай от имени человека. Хорошо это или плохо: ", "Отвечай от имени человека. Есть ли в этом смысл: ");
 $fraza = $inputr[array_rand($inputr)];
 		
-$api = esc_attr( get_option(  'gpt_setting_name' ) );
-$titlebot = $fraza.' '.get_the_title( $post_id );
+$api_key = esc_attr( get_option(  'gpt_setting_name' ) );
+$query = $fraza.' '.get_the_title( $post_id );
 
-$headers = [
-    'Content-Type: application/json',
-    'Authorization: Bearer '.$api.''
-];
+  $ch = curl_init();
+    $urls = 'https://api.openai.com/v1/chat/completions';
+    $post_fields = array(
+        "model" => "gpt-3.5-turbo",
+        "messages" => array(
+            array(
+                "role" => "user",
+                "content" => $query
+            )
+        ),
+        "max_tokens" => 1024,
+        "temperature" => 0.8
+    );
 
-$data = [
-    'model' => 'text-davinci-003',
-    'prompt' => $titlebot,
-    'max_tokens' => 1024,
-    'temperature' => 0.8
-];
-$ch = curl_init("https://api.openai.com/v1/completions");
-curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $header  = [
+        'Content-Type: application/json',
+        'Authorization: Bearer ' . $api_key
+    ];
+
+    curl_setopt($ch, CURLOPT_URL, $urls);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($post_fields));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
 
 $response = json_decode(curl_exec($ch), true);
-		
 if($e = curl_error($ch)) {
 $commentbot = '';
 } else {
-$commentbot = $response['choices'][0]['text'];	
+$commentbot = $response['choices'][0]['message']['content'];
 }
 curl_close($ch);
 
 
+$imenos=esc_attr( get_option('gpt_setting_name3'));
+$words = explode(",", $imenos);
+$random_imeno = trim($words[array_rand($words)]);
+
         $data = array(
             'comment_post_ID' => $post_id,
-            'comment_author' => esc_attr( get_option(  'gpt_setting_name3' ) ),
+            'comment_author' => $random_imeno,
             'comment_author_email' => esc_attr( get_option(  'gpt_setting_name2' ) ),
             'comment_author_url' => '',
             'comment_content' => $commentbot,
