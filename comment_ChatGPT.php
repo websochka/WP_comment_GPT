@@ -2,7 +2,7 @@
 /*
 Plugin Name: WP Комментатор ChatGPT
 Plugin URI: https://sochka.com
-Description: Искусственный интеллект (ChatGPT) оставляет осмысленный комментарий к вашей записи (каждый раз: при создания новой, при редактировании старой). Дополняет новость уникальным контентом! Стимулирует дальнейшую дискуссию читателями! Настройте: НАСТРОЙКИ - ОБСУЖДЕНИЯ...
+Description: Искусственный интеллект (ChatGPT) оставляет осмысленный комментарий к записям (каждый раз: при создании новой или редактировании старой, а также к избранным записям). Дополняет новость уникальным контентом! Стимулирует дальнейшую дискуссию читателями!
 Version: 0.3
 Author: Yaroslav Sochka
 Author URI: https://sochka.com
@@ -42,6 +42,7 @@ function gpt_settings_api_init() {
 		'gpt_setting_section'
 	);
 
+
 	register_setting( 'discussion', 'gpt_setting_name' );
 	register_setting( 'discussion', 'gpt_setting_name2' );
 	register_setting( 'discussion', 'gpt_setting_name3' );
@@ -49,7 +50,9 @@ function gpt_settings_api_init() {
 
 
 function gpt_setting_section_callback_function() {
+    echo '<section id="gptservices">';
 	echo '<p>Внимательно заполните ВСЕ поля для корректной работы комментатора ChatGPT</p>';
+	echo '</section>';
 }
 
 function gpt_setting_callback_function() {
@@ -58,7 +61,6 @@ function gpt_setting_callback_function() {
 		name="gpt_setting_name"
 		type="text"
 		value="<?= esc_attr( get_option(  'gpt_setting_name' ) ) ?>"
-		class="code"
 	/>  <a href="https://platform.openai.com/account/api-keys" target="_blank" title="Требуется регистрация">Получить API</a>
 	<?php
 }
@@ -69,19 +71,29 @@ function gpt_setting_callback_function2() {
 		name="gpt_setting_name2"
 		type="text"
 		value="<?= esc_attr( get_option( 'gpt_setting_name2' ) ) ?>"
-		class="code2"
 	 /> (оптимально, если у него есть Gravatar)
 	<?php
 }
 
 function gpt_setting_callback_function3() {
 	?>
-	<textarea rows="10" cols="45" class="code3" style="height: 50px;"
+	<textarea rows="10" cols="45" style="height: 50px;"
 		name="gpt_setting_name3">
 <?= esc_attr( get_option( 'gpt_setting_name3' ) ) ?></textarea>
  Например: newsBOT (если написать список имен, разделенных запятыми, то будет использовано случайное имя из списка)
 	<?php
 }
+
+//ссылка на настройки плагина
+function gpt_plugin_links( $links, $file ) {
+    if ( $file == plugin_basename( __FILE__ ) ) {
+        $settings_link = '<a href="' . esc_url( admin_url( 'options-discussion.php#gptservices' ) ) . '">Настройки</a>';
+        array_push( $links, $settings_link );
+    }
+    return $links;
+}
+add_filter( 'plugin_action_links', 'gpt_plugin_links', 10, 2 );
+
 
 //генерируем GPT комментарий к записи по id
 
@@ -205,5 +217,6 @@ function gpt_custom_bulk_action_handler() {
 
     exit();
 }
+
 
 ?>
