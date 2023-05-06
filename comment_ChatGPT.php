@@ -3,7 +3,7 @@
 Plugin Name: WP Комментатор ChatGPT
 Plugin URI: https://sochka.com
 Description: Искусственный интеллект (ChatGPT) оставляет осмысленный комментарий к записям (каждый раз: при создании новой или редактировании старой, а также к избранным записям). Дополняет новость уникальным контентом! Стимулирует дальнейшую дискуссию читателями!
-Version: 0.32
+Version: 0.33
 Author: Yaroslav Sochka
 Author URI: https://sochka.com
 License: GPLv2 or later
@@ -68,6 +68,7 @@ function gpt_settings_api_init() {
 function gpt_setting_section_callback_function() {
     echo '<section id="gptservices">';
 	echo '<p>Внимательно заполните ВСЕ поля для корректной работы комментатора ChatGPT</p>';
+	echo '<p>Чтобы GPT комментировал: <b>Записи - Все записи</b>, выбрать нужные, в выпадающем списке "<b>Действия</b>" выбрать пункт "<b>GPT комментарий</b>"</p>';
 	echo '</section>';
 }
 
