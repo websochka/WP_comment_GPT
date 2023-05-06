@@ -3,7 +3,7 @@
 Plugin Name: WP Комментатор ChatGPT
 Plugin URI: https://sochka.com
 Description: Искусственный интеллект (ChatGPT) оставляет осмысленный комментарий к записям (каждый раз: при создании новой или редактировании старой, а также к избранным записям). Дополняет новость уникальным контентом! Стимулирует дальнейшую дискуссию читателями!
-Version: 0.3
+Version: 0.32
 Author: Yaroslav Sochka
 Author URI: https://sochka.com
 License: GPLv2 or later
@@ -41,11 +41,27 @@ function gpt_settings_api_init() {
 		'discussion',
 		'gpt_setting_section'
 	);
+		add_settings_field(
+		'gpt_setting_name4',
+		'Температура (от 0 до 1)',
+		'gpt_setting_callback_function4',
+		'discussion',
+		'gpt_setting_section'
+	);
+		add_settings_field(
+		'gpt_setting_name5',
+		'',
+		'gpt_setting_callback_function5',
+		'discussion',
+		'gpt_setting_section'
+	);
 
 
 	register_setting( 'discussion', 'gpt_setting_name' );
 	register_setting( 'discussion', 'gpt_setting_name2' );
 	register_setting( 'discussion', 'gpt_setting_name3' );
+	register_setting( 'discussion', 'gpt_setting_name4' );
+	register_setting( 'discussion', 'gpt_setting_name5' );
 }
 
 
@@ -84,6 +100,22 @@ function gpt_setting_callback_function3() {
 	<?php
 }
 
+function gpt_setting_callback_function4() {
+	?>
+<input name="gpt_setting_name4" type="range" min="0" max="1" step="0.01" value="<?= esc_attr( get_option( 'gpt_setting_name4' ) ) ?>" oninput="updateValue(this.value)">
+<b><span id="gptvalue"><?= esc_attr( get_option( 'gpt_setting_name4' ) ) ?></span></b>
+<script>function updateValue(value) {document.getElementById("gptvalue").innerHTML = value;}</script>
+ Чем выше, тем оригинальнее будут комментарии
+	<?php
+}
+
+function gpt_setting_callback_function5() {
+?>
+	  <input type="checkbox" name="gpt_setting_name5" <?php checked(1, get_option('gpt_setting_name5'), true); ?> value="1" />
+Генерация комментария при СОЗДАНИИ/РЕДАКТИРОВАНИИ записи
+<?php
+}
+
 //ссылка на настройки плагина
 function gpt_plugin_links( $links, $file ) {
     if ( $file == plugin_basename( __FILE__ ) ) {
@@ -103,6 +135,7 @@ $inputr = array("Отвечай от имени человека. Прокомм
 $fraza = $inputr[array_rand($inputr)];
 		
 $api_key = esc_attr( get_option(  'gpt_setting_name' ) );
+$temperaturegpt =  esc_attr( get_option(  'gpt_setting_name4' ) );
 $query = $fraza.' '.get_the_title( $post_id );
 
   $ch = curl_init();
@@ -116,7 +149,7 @@ $query = $fraza.' '.get_the_title( $post_id );
             )
         ),
         "max_tokens" => 1024,
-        "temperature" => 0.8
+        "temperature" => floatval($temperaturegpt)
     );
 
     $header  = [
@@ -174,6 +207,7 @@ $comment_id = wp_insert_comment(wp_slash($data));
 //генерируем комментарий в момент СОЗДАНИЯ/СОХРАНЕНИЯ ЗАПИСИ
 function add_comment_on_post_update( $post_id, $post_after, $post_before ) {
 
+if (get_option('gpt_setting_name5') == 1) {  // Действия, если чекбокс выбран
 	if ( wp_is_post_revision( $post_id ) )
         return;
     if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE)
@@ -182,10 +216,12 @@ function add_comment_on_post_update( $post_id, $post_after, $post_before ) {
         return;
     }
 
- if ('post' == $_POST['post_type']) { //проверяем, что это тип - записи
+if ('post' == $_POST['post_type']) { //проверяем, что это тип - записи
 add_comment_to_post  ($post_id);
  }
 
+} 
+		
 }
 add_action( 'post_updated', 'add_comment_on_post_update', 10 , 3 );
 
