@@ -3,7 +3,7 @@
 Plugin Name: WP Комментатор ChatGPT
 Plugin URI: https://sochka.com
 Description: Искусственный интеллект (ChatGPT) оставляет осмысленный комментарий к записям (каждый раз: при создании новой или редактировании старой, а также к избранным записям). Дополняет новость уникальным контентом! Стимулирует дальнейшую дискуссию читателями!
-Version: 0.33
+Version: 0.35
 Author: Yaroslav Sochka
 Author URI: https://sochka.com
 License: GPLv2 or later
@@ -131,16 +131,30 @@ add_filter( 'plugin_action_links', 'gpt_plugin_links', 10, 2 );
 //генерируем GPT комментарий к записи по id
 
 function add_comment_to_post($post_id) {
-$inputr = array("Отвечай от имени человека. Прокомментируй новость: ", "Прокомментируй от имени человека. Что ты думаешь по этому поводу: ", "Прокомментируй от имени человека. Как ты к этому относишься: ", "Прокомментируй от имени человека. Хорошо это или плохо: ", "Прокомментируй от имени человека. Есть ли в этом смысл: ");
+  $inputr = array(
+        "Поругай автора за статью одним предложением: ",
+        "Похвали автора за статью одним предложением: ",
+        "Придумай простейшее двустишие или трёхстишие к тексту: ",
+        "Придумай скептический комментарий к тексту: ",
+        "Придумай короткую шутку на тему: ",
+        "Напиши краткий афоризм на тему: ",
+        "Напиши восторженный комментарий к тексту: ",
+        "Сочини философское высказывание к тексту: ",
+        "Какая пословица бы подошла к этому тексту: ",
+        "Прокомментируй текст от имени читателя: ",
+        "Придумай комментарий к тексту от имени человека, который ничего в этом не понимает: ",
+        "Придумай саркастический комментарий к тексту от имени человека, который считает что все знает: "
+    );
 
-$fraza = $inputr[array_rand($inputr)];
-		
+$fraza = $inputr[array_rand($inputr)];	
+$query = $fraza.' '.get_the_title( $post_id );
 $api_key = esc_attr( get_option(  'gpt_setting_name' ) );
 $temperaturegpt =  esc_attr( get_option(  'gpt_setting_name4' ) );
-$query = $fraza.' '.get_the_title( $post_id );
-
+$imenos = esc_attr( get_option('gpt_setting_name3'));
+$words = explode(",", $imenos);
+$random_imeno = trim($words[array_rand($words)]);
+	
   $ch = curl_init();
-    $urls = 'https://api.openai.com/v1/chat/completions';
     $post_fields = array(
         "model" => "gpt-3.5-turbo",
         "messages" => array(
@@ -158,23 +172,19 @@ $query = $fraza.' '.get_the_title( $post_id );
         'Authorization: Bearer ' . $api_key
     ];
 
-    curl_setopt($ch, CURLOPT_URL, $urls);
+    curl_setopt($ch, CURLOPT_URL, 'https://api.openai.com/v1/chat/completions');
+	curl_setopt($ch, CURLOPT_FORBID_REUSE, 1);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+	curl_setopt($ch, CURLOPT_HEADER, 0);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
     curl_setopt($ch, CURLOPT_POST, 1);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($post_fields));
     curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
 
 $response = json_decode(curl_exec($ch), true);
-if($e = curl_error($ch)) {
-$commentbot = '';
-} else {
-$commentbot = $response['choices'][0]['message']['content'];
-}
 curl_close($ch);
-
-$imenos=esc_attr( get_option('gpt_setting_name3'));
-$words = explode(",", $imenos);
-$random_imeno = trim($words[array_rand($words)]);
+$commentbot = $response['choices'][0]['message']['content'];
 
 $data = array(
     'comment_post_ID' => $post_id,
@@ -192,7 +202,6 @@ $data = array(
 if (strlen($commentbot) > 15) { //проверяем, не пустой ли комментарий
 $comment_id = wp_insert_comment(wp_slash($data));
 }
-	
     if ($comment_id) {
         // Комментарий успешно добавлен
         return true;
@@ -200,10 +209,7 @@ $comment_id = wp_insert_comment(wp_slash($data));
         // Произошла ошибка при добавлении комментария
         return false;
     }
-}
-
-
-
+ }
 
 //генерируем комментарий в момент СОЗДАНИЯ/СОХРАНЕНИЯ ЗАПИСИ
 function add_comment_on_post_update( $post_id, $post_after, $post_before ) {
@@ -238,6 +244,8 @@ function gpt_custom_bulk_actions( $actions ) {
     return $actions;
 }
 
+
+	
 //генерируем комментарий GPT к выбранным записям
 add_action( 'admin_action_gpt_custom_action', 'gpt_custom_bulk_action_handler' );
 
@@ -247,6 +255,7 @@ function gpt_custom_bulk_action_handler() {
     foreach ( $post_ids as $post_id ) {
         // генерируем комментарий GPT к каждой выбранной записи
         add_comment_to_post  ($post_id);
+		
     }
     // перенаправление на страницу со списком записей
     $sendback = remove_query_arg( array( 'action', 'action2' ), wp_get_referer() );
