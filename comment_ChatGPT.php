@@ -3,7 +3,7 @@
 Plugin Name: WP Комментатор ChatGPT
 Plugin URI: https://sochka.com
 Description: Искусственный интеллект (ChatGPT) оставляет осмысленный комментарий к записям (каждый раз: при создании новой или редактировании старой, а также к избранным записям). Дополняет новость уникальным контентом! Стимулирует дальнейшую дискуссию читателями!
-Version: 0.35
+Version: 0.37
 Author: Yaroslav Sochka
 Author URI: https://sochka.com
 License: GPLv2 or later
@@ -79,7 +79,7 @@ function gpt_setting_callback_function() {
 		type="text"
 		value="<?= esc_attr( get_option(  'gpt_setting_name' ) ) ?>"
 	/>  <a href="https://platform.openai.com/account/api-keys" target="_blank" title="Требуется регистрация">Получить API</a>
-	<?php
+					<?php 
 }
 
 function gpt_setting_callback_function2() {
@@ -106,7 +106,7 @@ function gpt_setting_callback_function4() {
 <input name="gpt_setting_name4" type="range" min="0" max="1" step="0.01" value="<?= esc_attr( get_option( 'gpt_setting_name4' ) ) ?>" oninput="updateValue(this.value)">
 <b><span id="gptvalue"><?= esc_attr( get_option( 'gpt_setting_name4' ) ) ?></span></b>
 <script>function updateValue(value) {document.getElementById("gptvalue").innerHTML = value;}</script>
- Чем выше, тем оригинальнее будут комментарии
+ Чем выше, тем оригинальнее будут комментарии, но скорость генерации выше
 	<?php
 }
 
@@ -131,7 +131,7 @@ add_filter( 'plugin_action_links', 'gpt_plugin_links', 10, 2 );
 //генерируем GPT комментарий к записи по id
 
 function add_comment_to_post($post_id) {
-  $inputr = array(
+  $prompt_gpt = array(
         "Поругай автора за статью одним предложением: ",
         "Похвали автора за статью одним предложением: ",
         "Придумай простейшее двустишие или трёхстишие к тексту: ",
@@ -143,12 +143,15 @@ function add_comment_to_post($post_id) {
         "Какая пословица бы подошла к этому тексту: ",
         "Прокомментируй текст от имени читателя: ",
         "Придумай комментарий к тексту от имени человека, который ничего в этом не понимает: ",
+	    "Задай наводящий вопрос, чтобы вызвать обсуждение, исходя из текста: ",
+	    "Попроси автора расширить конкретный момент или идею, обсуждаемую в сообщении: ",
+	    "Предложи конкретный комплимент или конструктивную критику к тексту: ",
         "Придумай саркастический комментарий к тексту от имени человека, который считает что все знает: "
     );
 
-$fraza = $inputr[array_rand($inputr)];	
+$fraza = $prompt_gpt[array_rand($prompt_gpt)];	
 $query = $fraza.' '.get_the_title( $post_id );
-$api_key = esc_attr( get_option(  'gpt_setting_name' ) );
+$api_key_gpt = esc_attr( get_option(  'gpt_setting_name' ) );
 $temperaturegpt =  esc_attr( get_option(  'gpt_setting_name4' ) );
 $imenos = esc_attr( get_option('gpt_setting_name3'));
 $words = explode(",", $imenos);
@@ -163,15 +166,24 @@ $random_imeno = trim($words[array_rand($words)]);
                 "content" => $query
             )
         ),
-        "max_tokens" => 1024,
+        "max_tokens" => 512,
+		"top_p" => 1,
+        "frequency_penalty" => 0,
+        "presence_penalty" => 0,
+        "stop" => ["\\n"],
         "temperature" => floatval($temperaturegpt)
     );
 
     $header  = [
         'Content-Type: application/json',
-        'Authorization: Bearer ' . $api_key
+        'Authorization: Bearer ' . $api_key_gpt
     ];
 
+	header('Content-Type: text/event-stream');
+    header('Cache-Control: no-cache');
+    header('Connection: keep-alive');
+    header('X-Accel-Buffering: no');
+	
     curl_setopt($ch, CURLOPT_URL, 'https://api.openai.com/v1/chat/completions');
 	curl_setopt($ch, CURLOPT_FORBID_REUSE, 1);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -190,16 +202,14 @@ $data = array(
     'comment_post_ID' => $post_id,
     'comment_author' => $random_imeno,
     'comment_author_email' => esc_attr( get_option(  'gpt_setting_name2' ) ),
-    'comment_author_url' => '',
-    'comment_content' => $commentbot,
+    'comment_content' => wp_kses_post($commentbot),
 	'comment_parent'       => 0,
-	'user_id'              => '',
 	'comment_author_IP'    => '127.0.0.1',
 	'comment_date' => date('Y-m-d H:i:s'),
 	'comment_approved'     => 1
         );
 	
-if (strlen($commentbot) > 15) { //проверяем, не пустой ли комментарий
+if (strlen($commentbot) > 10) { //проверяем, не пустой ли комментарий
 $comment_id = wp_insert_comment(wp_slash($data));
 }
     if ($comment_id) {
@@ -213,7 +223,6 @@ $comment_id = wp_insert_comment(wp_slash($data));
 
 //генерируем комментарий в момент СОЗДАНИЯ/СОХРАНЕНИЯ ЗАПИСИ
 function add_comment_on_post_update( $post_id, $post_after, $post_before ) {
-
 if (get_option('gpt_setting_name5') == 1) {  // Действия, если чекбокс выбран
 	if ( wp_is_post_revision( $post_id ) )
         return;
@@ -228,7 +237,6 @@ add_comment_to_post  ($post_id);
  }
 
 } 
-		
 }
 add_action( 'post_updated', 'add_comment_on_post_update', 10 , 3 );
 
@@ -243,8 +251,6 @@ function gpt_custom_bulk_actions( $actions ) {
     $actions['gpt_custom_action'] = __( 'GPT комментарий', 'textdomain' );
     return $actions;
 }
-
-
 	
 //генерируем комментарий GPT к выбранным записям
 add_action( 'admin_action_gpt_custom_action', 'gpt_custom_bulk_action_handler' );
@@ -252,17 +258,18 @@ add_action( 'admin_action_gpt_custom_action', 'gpt_custom_bulk_action_handler' )
 function gpt_custom_bulk_action_handler() {
     $post_ids = isset( $_REQUEST['post'] ) ? $_REQUEST['post'] : array(); // получаем выбранные записи
 
-    foreach ( $post_ids as $post_id ) {
-        // генерируем комментарий GPT к каждой выбранной записи
-        add_comment_to_post  ($post_id);
-		
+   foreach ( $post_ids as $post_id ) {
+    // генерируем комментарий GPT к каждой выбранной записи
+  if (add_comment_to_post($post_id)) {
+        sleep(3);
+    } else {
+        continue;
     }
+}
     // перенаправление на страницу со списком записей
     $sendback = remove_query_arg( array( 'action', 'action2' ), wp_get_referer() );
 	wp_redirect( $sendback ); 
-
     exit();
 }
-
 
 ?>
