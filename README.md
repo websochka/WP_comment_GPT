@@ -21,4 +21,11 @@
 
 ![Генерация комментария GTP](https://github.com/websochka/WP_comment_GPT/blob/main/generate_gpt.jpg)
 
+## PRO версия плагина
+Для автогенерации комментариев в промышленных масштабах существует платная версия плагина "Комментатор ChatGPT PRO (для WordPress)" 
+Комментатор ChatGPT PRO поддерживает GPT-3.5-turbo или GPT-4. Может работать в автомномном режиме, имеет гибкие настройки...
+
+Больше информации о плагине: https://100zona.com/comment_gpt
+
+![Генерация комментария GTP](https://100zona.com/wp-content/uploads/2023/06/comment2.jpg)
 
